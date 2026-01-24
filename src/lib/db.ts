@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaNeonHttp } from '@prisma/adapter-neon'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -11,7 +11,7 @@ function createPrismaClient() {
     throw new Error('DATABASE_URL is not set')
   }
 
-  const adapter = new PrismaNeon({ connectionString })
+  const adapter = new PrismaNeonHttp(connectionString, { arrayMode: false, fullResults: true })
   return new PrismaClient({ adapter })
 }
 
