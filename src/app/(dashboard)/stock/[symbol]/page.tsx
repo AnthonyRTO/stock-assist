@@ -1,7 +1,7 @@
 'use client'
 
-import { use } from 'react'
-import useSWR from 'swr'
+import { use, useState } from 'react'
+import useSWR, { mutate as globalMutate } from 'swr'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -12,6 +12,9 @@ import {
   Target,
   ShoppingCart,
   Wallet,
+  DollarSign,
+  Minus,
+  Plus,
 } from 'lucide-react'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { RSIChart } from '@/components/charts/RSIChart'
@@ -33,6 +36,19 @@ interface StockData {
   historicalData: HistoricalData[]
   indicators: TechnicalIndicators
   prediction: Prediction
+}
+
+interface PortfolioStock {
+  id: string
+  symbol: string
+  shares: number
+  avgPrice: number
+}
+
+interface Portfolio {
+  id: string
+  currentCash: number
+  stocks: PortfolioStock[]
 }
 
 function getSignalBgColor(signal: Prediction['signal']) {
@@ -94,6 +110,48 @@ export default function StockPage({
     `/api/stocks/${symbol}`,
     fetcher
   )
+  const { data: portfolioData, mutate: mutatePortfolio } = useSWR<{ portfolios: Portfolio[] }>(
+    '/api/portfolio',
+    fetcher
+  )
+
+  const [shares, setShares] = useState(1)
+  const [trading, setTrading] = useState(false)
+  const [tradeMessage, setTradeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const portfolio = portfolioData?.portfolios?.[0]
+  const holdingStock = portfolio?.stocks.find(
+    (s) => s.symbol.toUpperCase() === symbol.toUpperCase()
+  )
+
+  const executeTrade = async (action: 'buy' | 'sell') => {
+    if (!data?.quote) return
+    setTrading(true)
+    setTradeMessage(null)
+
+    try {
+      const res = await fetch(`/api/portfolio/stocks/${symbol}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, shares }),
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        setTradeMessage({ type: 'error', text: result.error || 'Trade failed' })
+      } else {
+        setTradeMessage({ type: 'success', text: result.message })
+        mutatePortfolio()
+        globalMutate('/api/portfolio')
+        setShares(1)
+      }
+    } catch {
+      setTradeMessage({ type: 'error', text: 'Failed to execute trade' })
+    } finally {
+      setTrading(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -115,6 +173,9 @@ export default function StockPage({
 
   const { quote, historicalData, indicators, prediction } = data
   const isPositive = quote.change >= 0
+  const estimatedCost = shares * quote.price
+  const canBuy = portfolio && estimatedCost <= portfolio.currentCash
+  const canSell = holdingStock && shares <= holdingStock.shares
 
   return (
     <div>
@@ -202,6 +263,136 @@ export default function StockPage({
                 Above ${prediction.sellZone.low.toFixed(2)}
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Trading Panel */}
+      <div className="card p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-green-400" />
+          Trade {quote.symbol}
+        </h2>
+
+        {tradeMessage && (
+          <div
+            className={`mb-4 p-3 rounded-lg ${
+              tradeMessage.type === 'success'
+                ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                : 'bg-red-500/10 border border-red-500/20 text-red-400'
+            }`}
+          >
+            {tradeMessage.text}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left: Account Info */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+              <span className="text-white/60">Available Cash</span>
+              <span className="font-bold text-green-400">
+                ${(portfolio?.currentCash || 0).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+              <span className="text-white/60">Your Shares</span>
+              <span className="font-bold">
+                {holdingStock?.shares || 0} shares
+              </span>
+            </div>
+            {holdingStock && holdingStock.shares > 0 && (
+              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span className="text-white/60">Avg Cost Basis</span>
+                <span className="font-medium">
+                  ${holdingStock.avgPrice.toFixed(2)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-center p-3 bg-blue-500/10 rounded-lg">
+              <span className="text-white/60">Current Price</span>
+              <span className="font-bold text-blue-400">
+                ${quote.price.toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Trade Controls */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-white/60 mb-2">
+                Number of Shares
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShares(Math.max(1, shares - 1))}
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <input
+                  type="number"
+                  value={shares}
+                  onChange={(e) => setShares(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-center text-xl font-bold focus:outline-none focus:border-blue-500"
+                  min={1}
+                />
+                <button
+                  onClick={() => setShares(shares + 1)}
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 bg-white/5 rounded-lg">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-white/60">Estimated Total</span>
+                <span className="font-bold">${estimatedCost.toLocaleString()}</span>
+              </div>
+              <div className="text-xs text-white/40">
+                {shares} shares × ${quote.price.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => executeTrade('buy')}
+                disabled={trading || !canBuy}
+                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+              >
+                {trading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <TrendingUp className="w-4 h-4" />
+                )}
+                Buy
+              </button>
+              <button
+                onClick={() => executeTrade('sell')}
+                disabled={trading || !canSell}
+                className="bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+              >
+                {trading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <TrendingDown className="w-4 h-4" />
+                )}
+                Sell
+              </button>
+            </div>
+
+            {!canBuy && shares > 0 && estimatedCost > (portfolio?.currentCash || 0) && (
+              <p className="text-red-400 text-sm text-center">
+                Insufficient funds for this purchase
+              </p>
+            )}
+            {!canSell && holdingStock && shares > holdingStock.shares && (
+              <p className="text-red-400 text-sm text-center">
+                You only have {holdingStock.shares} shares to sell
+              </p>
+            )}
           </div>
         </div>
       </div>
