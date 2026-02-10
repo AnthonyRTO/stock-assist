@@ -1,4 +1,4 @@
-import { HistoricalData, StockQuote } from '@/types'
+import { CompanyOverview, HistoricalData, StockQuote } from '@/types'
 
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'demo'
 const BASE_URL = 'https://www.alphavantage.co/query'
@@ -141,6 +141,52 @@ export async function searchStocks(query: string): Promise<
   } catch (error) {
     console.error('Error searching stocks:', error)
     return []
+  }
+}
+
+export async function getCompanyOverview(symbol: string): Promise<CompanyOverview | null> {
+  const cacheKey = `overview:${symbol}`
+  const cached = getCached<CompanyOverview>(cacheKey)
+  if (cached) return cached
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}?function=OVERVIEW&symbol=${symbol}&apikey=${API_KEY}`
+    )
+    const data = await response.json()
+
+    if (!data.Symbol || Object.keys(data).length < 5) {
+      return null
+    }
+
+    const result: CompanyOverview = {
+      symbol: data.Symbol,
+      name: data.Name,
+      description: data.Description,
+      sector: data.Sector,
+      industry: data.Industry,
+      marketCap: parseFloat(data.MarketCapitalization) || 0,
+      beta: parseFloat(data.Beta) || 1,
+      peRatio: parseFloat(data.TrailingPE) || 0,
+      forwardPE: parseFloat(data.ForwardPE) || 0,
+      pegRatio: parseFloat(data.PEGRatio) || 0,
+      eps: parseFloat(data.EPS) || 0,
+      bookValue: parseFloat(data.BookValue) || 0,
+      dividendYield: parseFloat(data.DividendYield) || 0,
+      profitMargin: parseFloat(data.ProfitMargin) || 0,
+      operatingMargin: parseFloat(data.OperatingMarginTTM) || 0,
+      returnOnEquity: parseFloat(data.ReturnOnEquityTTM) || 0,
+      revenuePerShare: parseFloat(data.RevenuePerShareTTM) || 0,
+      analystTargetPrice: parseFloat(data.AnalystTargetPrice) || 0,
+      fiftyTwoWeekHigh: parseFloat(data['52WeekHigh']) || 0,
+      fiftyTwoWeekLow: parseFloat(data['52WeekLow']) || 0,
+      sharesOutstanding: parseFloat(data.SharesOutstanding) || 0,
+    }
+    setCache(cacheKey, result)
+    return result
+  } catch (error) {
+    console.error('Error fetching company overview:', error)
+    return null
   }
 }
 

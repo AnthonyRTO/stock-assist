@@ -104,7 +104,16 @@ export function PriceChart({
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-          formatter={(value) => [`$${Number(value).toFixed(2)}`, '']}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter={((value: number, name: string) => {
+            const label =
+              name === 'price'
+                ? 'Price'
+                : name === 'predicted'
+                  ? 'Predicted'
+                  : name
+            return [`$${value.toFixed(2)}`, label]
+          }) as any}
         />
         <ReferenceLine
           x={today}

@@ -9,3 +9,4 @@ export {
   getSignalColor,
   getSignalLabel,
 } from './predictor'
+export { calculateValuation } from './valuation'

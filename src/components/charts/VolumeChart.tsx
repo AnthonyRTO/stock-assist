@@ -57,10 +57,11 @@ export function VolumeChart({ historicalData }: VolumeChartProps) {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-          formatter={(value) => [
-            `${(Number(value) / 1000000).toFixed(2)}M`,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter={((value: number) => [
+            `${(value / 1000000).toFixed(2)}M`,
             'Volume',
-          ]}
+          ]) as any}
         />
         <ReferenceLine
           y={avg20}

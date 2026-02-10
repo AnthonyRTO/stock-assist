@@ -15,17 +15,21 @@ import {
   DollarSign,
   Minus,
   Plus,
+  Scale,
+  BarChart3,
 } from 'lucide-react'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { RSIChart } from '@/components/charts/RSIChart'
 import { MACDChart } from '@/components/charts/MACDChart'
 import { VolumeChart } from '@/components/charts/VolumeChart'
 import { BollingerChart } from '@/components/charts/BollingerChart'
+import { ValuationChart } from '@/components/charts/ValuationChart'
 import type {
   StockQuote,
   HistoricalData,
   TechnicalIndicators,
   Prediction,
+  ValuationData,
 } from '@/types'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
@@ -36,6 +40,7 @@ interface StockData {
   historicalData: HistoricalData[]
   indicators: TechnicalIndicators
   prediction: Prediction
+  valuation: ValuationData | null
 }
 
 interface PortfolioStock {
@@ -98,6 +103,44 @@ function getSignalLabel(signal: Prediction['signal']) {
     default:
       return 'Unknown'
   }
+}
+
+function getVerdictColor(verdict: ValuationData['verdict']) {
+  switch (verdict) {
+    case 'significantly_undervalued': return 'text-green-400'
+    case 'undervalued': return 'text-green-300'
+    case 'fairly_valued': return 'text-yellow-400'
+    case 'overvalued': return 'text-red-300'
+    case 'significantly_overvalued': return 'text-red-400'
+  }
+}
+
+function getVerdictLabel(verdict: ValuationData['verdict']) {
+  switch (verdict) {
+    case 'significantly_undervalued': return 'Significantly Undervalued'
+    case 'undervalued': return 'Undervalued'
+    case 'fairly_valued': return 'Fairly Valued'
+    case 'overvalued': return 'Overvalued'
+    case 'significantly_overvalued': return 'Significantly Overvalued'
+  }
+}
+
+function getVerdictBgColor(verdict: ValuationData['verdict']) {
+  switch (verdict) {
+    case 'significantly_undervalued': return 'bg-green-500/20 border-green-500/30'
+    case 'undervalued': return 'bg-green-500/10 border-green-500/20'
+    case 'fairly_valued': return 'bg-yellow-500/10 border-yellow-500/20'
+    case 'overvalued': return 'bg-red-500/10 border-red-500/20'
+    case 'significantly_overvalued': return 'bg-red-500/20 border-red-500/30'
+  }
+}
+
+function getBetaInterpretation(beta: number): string {
+  if (beta < 0.5) return 'Very low volatility — moves less than the market'
+  if (beta < 0.8) return 'Low volatility — tends to be more stable than the market'
+  if (beta < 1.2) return 'Market-like volatility — moves with the overall market'
+  if (beta < 1.5) return 'Moderate volatility — amplifies market movements'
+  return 'High volatility — significantly amplifies market swings'
 }
 
 export default function StockPage({
@@ -266,6 +309,111 @@ export default function StockPage({
           </div>
         </div>
       </div>
+
+      {/* Valuation Analysis */}
+      {data.valuation && (
+        <>
+          <div className={`card p-6 mb-6 ${getVerdictBgColor(data.valuation.verdict)}`}>
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Scale className="w-5 h-5 text-white/60" />
+                <span className={`text-xl font-bold ${getVerdictColor(data.valuation.verdict)}`}>
+                  {getVerdictLabel(data.valuation.verdict)}
+                </span>
+              </div>
+              <span className="text-white/40 text-sm">
+                {data.valuation.percentOverUndervalued > 0 ? '+' : ''}
+                {data.valuation.percentOverUndervalued.toFixed(1)}% vs fair value
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-white/60 text-sm">Fair Value Range</p>
+                <p className="text-lg font-bold">
+                  ${data.valuation.compositeFairValue.low.toFixed(2)} - $
+                  {data.valuation.compositeFairValue.high.toFixed(2)}
+                </p>
+                <p className="text-white/40 text-xs">
+                  Midpoint: ${data.valuation.compositeFairValue.mid.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-white/60 text-sm">Beta</p>
+                <p className="text-lg font-bold">{data.valuation.beta.toFixed(2)}</p>
+                <p className="text-white/40 text-xs">
+                  {getBetaInterpretation(data.valuation.beta)}
+                </p>
+              </div>
+              <div>
+                <p className="text-white/60 text-sm">CAPM Expected Return</p>
+                <p className="text-lg font-bold text-blue-400">
+                  {data.valuation.capmExpectedReturn.toFixed(1)}% / year
+                </p>
+                <p className="text-white/40 text-xs">
+                  Risk-free: 4.25% + Beta x Market Premium
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Valuation Models Breakdown */}
+          <div className="card p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Valuation Models
+              </h3>
+            </div>
+            <ValuationChart
+              models={data.valuation.models}
+              currentPrice={data.valuation.currentPrice}
+              compositeMid={data.valuation.compositeFairValue.mid}
+            />
+            <div className="mt-4 space-y-2">
+              {data.valuation.models.map((model) => (
+                <div key={model.name} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                  <div>
+                    <span className="text-white/80 text-sm">{model.name}</span>
+                    <p className="text-white/40 text-xs">{model.description}</p>
+                  </div>
+                  <span className={`font-medium ${
+                    model.fairValue === null
+                      ? 'text-white/30'
+                      : model.fairValue > data.valuation!.currentPrice
+                        ? 'text-green-400'
+                        : 'text-red-400'
+                  }`}>
+                    {model.fairValue !== null ? `$${model.fairValue.toFixed(2)}` : 'N/A'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Key Fundamentals */}
+          <div className="card p-6 mb-6">
+            <h3 className="font-semibold mb-4">Key Fundamentals</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'P/E Ratio', value: data.valuation.overview.peRatio > 0 ? data.valuation.overview.peRatio.toFixed(1) : 'N/A' },
+                { label: 'Forward P/E', value: data.valuation.overview.forwardPE > 0 ? data.valuation.overview.forwardPE.toFixed(1) : 'N/A' },
+                { label: 'PEG Ratio', value: data.valuation.overview.pegRatio > 0 ? data.valuation.overview.pegRatio.toFixed(2) : 'N/A' },
+                { label: 'EPS', value: `$${data.valuation.overview.eps.toFixed(2)}` },
+                { label: 'Book Value', value: `$${data.valuation.overview.bookValue.toFixed(2)}` },
+                { label: 'Dividend Yield', value: data.valuation.overview.dividendYield > 0 ? `${(data.valuation.overview.dividendYield * 100).toFixed(2)}%` : 'None' },
+                { label: 'Profit Margin', value: `${(data.valuation.overview.profitMargin * 100).toFixed(1)}%` },
+                { label: 'ROE', value: `${(data.valuation.overview.returnOnEquity * 100).toFixed(1)}%` },
+              ].map(({ label, value }) => (
+                <div key={label} className="p-3 bg-white/5 rounded-lg">
+                  <p className="text-white/40 text-xs">{label}</p>
+                  <p className="font-medium">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Trading Panel */}
       <div className="card p-6 mb-6">
@@ -642,10 +790,14 @@ export default function StockPage({
         </p>
         <p className="text-white/60 text-xs">
           This analysis is for educational purposes only and should not be
-          considered financial advice. All predictions are based on historical
-          technical indicators. Past performance does not guarantee future
-          results. Always do your own research before making investment
-          decisions.
+          considered financial advice. Predictions are based on historical
+          technical indicators and fundamental data models. Valuation estimates
+          use simplified models (Graham Number, P/E comparison, simplified DCF)
+          that have significant limitations. Fair value calculations depend on
+          reported financial data which may be outdated or restated. Past
+          performance does not guarantee future results. Always do your own
+          research and consult a licensed financial advisor before making
+          investment decisions.
         </p>
       </div>
     </div>

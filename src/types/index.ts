@@ -111,3 +111,51 @@ export interface Transaction {
   total: number
   createdAt: Date
 }
+
+// --- Valuation Analysis Types ---
+
+export interface CompanyOverview {
+  symbol: string
+  name: string
+  description: string
+  sector: string
+  industry: string
+  marketCap: number
+  beta: number
+  peRatio: number
+  forwardPE: number
+  pegRatio: number
+  eps: number
+  bookValue: number
+  dividendYield: number
+  profitMargin: number
+  operatingMargin: number
+  returnOnEquity: number
+  revenuePerShare: number
+  analystTargetPrice: number
+  fiftyTwoWeekHigh: number
+  fiftyTwoWeekLow: number
+  sharesOutstanding: number
+}
+
+export interface ValuationModel {
+  name: string
+  fairValue: number | null
+  description: string
+  confidence: 'high' | 'medium' | 'low'
+}
+
+export interface ValuationData {
+  beta: number
+  currentPrice: number
+  capmExpectedReturn: number
+  models: ValuationModel[]
+  compositeFairValue: {
+    low: number
+    mid: number
+    high: number
+  }
+  percentOverUndervalued: number
+  verdict: 'significantly_undervalued' | 'undervalued' | 'fairly_valued' | 'overvalued' | 'significantly_overvalued'
+  overview: CompanyOverview
+}

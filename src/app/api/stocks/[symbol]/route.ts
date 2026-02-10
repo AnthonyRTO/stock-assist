@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import {
   getStockQuote,
   getHistoricalData,
+  getCompanyOverview,
   generateMockHistoricalData,
 } from '@/lib/alpha-vantage'
-import { calculateAllIndicators, generatePrediction } from '@/lib/indicators'
+import { calculateAllIndicators, generatePrediction, calculateValuation } from '@/lib/indicators'
 
 export async function GET(
   request: Request,
@@ -17,10 +18,14 @@ export async function GET(
     // Get current quote
     const quote = await getStockQuote(upperSymbol)
 
-    // Get historical data (3 months)
-    let historicalData = await getHistoricalData(upperSymbol, 3)
+    // Get historical data and company overview in parallel
+    const [historicalDataRaw, overview] = await Promise.all([
+      getHistoricalData(upperSymbol, 3),
+      getCompanyOverview(upperSymbol),
+    ])
 
     // If no data (API limit), use mock data for demo
+    let historicalData = historicalDataRaw
     if (historicalData.length === 0) {
       historicalData = generateMockHistoricalData(3)
     }
@@ -30,6 +35,10 @@ export async function GET(
 
     // Generate prediction
     const prediction = generatePrediction(historicalData, indicators)
+
+    // Calculate valuation if overview data is available
+    const currentPrice = quote?.price || historicalData[historicalData.length - 1]?.close || 0
+    const valuation = overview ? calculateValuation(overview, currentPrice) : null
 
     return NextResponse.json({
       symbol: upperSymbol,
@@ -49,6 +58,7 @@ export async function GET(
       historicalData,
       indicators,
       prediction,
+      valuation,
     })
   } catch (error) {
     console.error('Stock data error:', error)

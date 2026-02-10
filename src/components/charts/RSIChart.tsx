@@ -47,7 +47,8 @@ export function RSIChart({ data }: RSIChartProps) {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-          formatter={(value) => [Number(value).toFixed(1), 'RSI']}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter={((value: number) => [value.toFixed(1), 'RSI']) as any}
         />
         <ReferenceLine
           y={70}
