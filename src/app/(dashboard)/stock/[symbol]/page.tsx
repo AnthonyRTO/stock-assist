@@ -19,6 +19,8 @@ import {
   BarChart3,
   HelpCircle,
   X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { RSIChart } from '@/components/charts/RSIChart'
@@ -220,7 +222,8 @@ export default function StockPage({
   const { symbol } = use(params)
   const { data, isLoading, error } = useSWR<StockData>(
     `/api/stocks/${symbol}`,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 60000 }
   )
   const { data: portfolioData, mutate: mutatePortfolio } = useSWR<{ portfolios: Portfolio[] }>(
     '/api/portfolio',
@@ -230,6 +233,8 @@ export default function StockPage({
   const [shares, setShares] = useState(1)
   const [trading, setTrading] = useState(false)
   const [tradeMessage, setTradeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showTechnicals, setShowTechnicals] = useState(false)
+  const [showTrading, setShowTrading] = useState(false)
 
   const portfolio = portfolioData?.portfolios?.[0]
   const holdingStock = portfolio?.stocks.find(
@@ -328,60 +333,8 @@ export default function StockPage({
         </div>
       </div>
 
-      {/* Prediction Card */}
-      <div
-        className={`card p-6 mb-6 ${getSignalBgColor(prediction.signal)}`}
-      >
-        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <Target className="w-5 h-5 text-white/60" />
-            <span
-              className={`text-xl font-bold ${getSignalTextColor(prediction.signal)}`}
-            >
-              {getSignalLabel(prediction.signal)} Signal
-            </span>
-            <InfoTooltip text={EXPLANATIONS.prediction} />
-          </div>
-          <span className="text-white/40 text-sm">
-            Confidence: {prediction.confidence}%
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex items-start gap-3">
-            <ShoppingCart className="w-5 h-5 text-green-400 mt-1" />
-            <div>
-              <p className="text-white/60 text-sm">Best Buy Zone</p>
-              <p className="text-lg font-bold">
-                ${prediction.buyZone.low.toFixed(2)} - $
-                {prediction.buyZone.high.toFixed(2)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Target className="w-5 h-5 text-blue-400 mt-1" />
-            <div>
-              <p className="text-white/60 text-sm">5-Month Target</p>
-              <p className="text-lg font-bold text-green-400">
-                ${prediction.targetPrice.low.toFixed(2)} - $
-                {prediction.targetPrice.high.toFixed(2)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Wallet className="w-5 h-5 text-yellow-400 mt-1" />
-            <div>
-              <p className="text-white/60 text-sm">Consider Selling</p>
-              <p className="text-lg font-bold text-yellow-400">
-                Above ${prediction.sellZone.low.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Valuation Analysis */}
-      {data.valuation && (
+      {/* === VALUATION ANALYSIS (Primary View) === */}
+      {data.valuation ? (
         <>
           <div className={`card p-6 mb-6 ${getVerdictBgColor(data.valuation.verdict)}`}>
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
@@ -485,142 +438,24 @@ export default function StockPage({
             </div>
           </div>
         </>
-      )}
-
-      {/* Trading Panel */}
-      <div className="card p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-green-400" />
-          Trade {quote.symbol}
-        </h2>
-
-        {tradeMessage && (
-          <div
-            className={`mb-4 p-3 rounded-lg ${
-              tradeMessage.type === 'success'
-                ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-                : 'bg-red-500/10 border border-red-500/20 text-red-400'
-            }`}
-          >
-            {tradeMessage.text}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left: Account Info */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-              <span className="text-white/60">Available Cash</span>
-              <span className="font-bold text-green-400">
-                ${(portfolio?.currentCash || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-              <span className="text-white/60">Your Shares</span>
-              <span className="font-bold">
-                {holdingStock?.shares || 0} shares
-              </span>
-            </div>
-            {holdingStock && holdingStock.shares > 0 && (
-              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                <span className="text-white/60">Avg Cost Basis</span>
-                <span className="font-medium">
-                  ${holdingStock.avgPrice.toFixed(2)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between items-center p-3 bg-blue-500/10 rounded-lg">
-              <span className="text-white/60">Current Price</span>
-              <span className="font-bold text-blue-400">
-                ${quote.price.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          {/* Right: Trade Controls */}
-          <div className="space-y-4">
+      ) : (
+        <div className="card p-6 mb-6 bg-white/5 border-white/10">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-400" />
             <div>
-              <label className="block text-sm text-white/60 mb-2">
-                Number of Shares
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShares(Math.max(1, shares - 1))}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <input
-                  type="number"
-                  value={shares}
-                  onChange={(e) => setShares(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-center text-xl font-bold focus:outline-none focus:border-blue-500"
-                  min={1}
-                />
-                <button
-                  onClick={() => setShares(shares + 1)}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-3 bg-white/5 rounded-lg">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-white/60">Estimated Total</span>
-                <span className="font-bold">${estimatedCost.toLocaleString()}</span>
-              </div>
-              <div className="text-xs text-white/40">
-                {shares} shares × ${quote.price.toFixed(2)}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => executeTrade('buy')}
-                disabled={trading || !canBuy}
-                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
-              >
-                {trading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <TrendingUp className="w-4 h-4" />
-                )}
-                Buy
-              </button>
-              <button
-                onClick={() => executeTrade('sell')}
-                disabled={trading || !canSell}
-                className="bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
-              >
-                {trading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <TrendingDown className="w-4 h-4" />
-                )}
-                Sell
-              </button>
-            </div>
-
-            {!canBuy && shares > 0 && estimatedCost > (portfolio?.currentCash || 0) && (
-              <p className="text-red-400 text-sm text-center">
-                Insufficient funds for this purchase
+              <p className="font-medium">Valuation data not available</p>
+              <p className="text-white/50 text-sm">
+                Fundamental data is not available for this symbol. This may be an ETF, international stock, or the API rate limit has been reached. Technical analysis is still available below.
               </p>
-            )}
-            {!canSell && holdingStock && shares > holdingStock.shares && (
-              <p className="text-red-400 text-sm text-center">
-                You only have {holdingStock.shares} shares to sell
-              </p>
-            )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Price Chart with Prediction */}
+      {/* Price Chart */}
       <div className="card p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">
-          Price History (3 Months) + Prediction (5 Months)
+          Price History (3 Months)
         </h2>
         <PriceChart
           historicalData={historicalData}
@@ -629,231 +464,435 @@ export default function StockPage({
         />
       </div>
 
-      {/* Technical Indicators */}
-      <h2 className="text-xl font-bold mb-4">Technical Indicators</h2>
+      {/* === COLLAPSIBLE: Technical Analysis === */}
+      <button
+        onClick={() => setShowTechnicals(!showTechnicals)}
+        className="w-full card p-4 mb-4 flex justify-between items-center hover:bg-white/5 transition-colors"
+      >
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Target className="w-5 h-5 text-white/60" />
+          Technical Analysis
+          <span className={`text-sm font-normal px-2 py-0.5 rounded ${getSignalBgColor(prediction.signal)} ${getSignalTextColor(prediction.signal)}`}>
+            {getSignalLabel(prediction.signal)}
+          </span>
+        </h2>
+        {showTechnicals ? <ChevronUp className="w-5 h-5 text-white/40" /> : <ChevronDown className="w-5 h-5 text-white/40" />}
+      </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* RSI */}
-        <div className="card p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold flex items-center">RSI (14)<InfoTooltip text={EXPLANATIONS.rsi} /></h3>
-            <span
-              className={`font-bold ${
-                indicators.rsi.signal === 'oversold'
-                  ? 'text-green-400'
-                  : indicators.rsi.signal === 'overbought'
-                    ? 'text-red-400'
-                    : 'text-yellow-400'
-              }`}
-            >
-              {indicators.rsi.value.toFixed(1)}
-            </span>
-          </div>
-          <RSIChart data={indicators.rsi.history} />
-          <div className="flex justify-between text-xs text-white/40 mt-2">
-            <span>Oversold (&lt;30)</span>
-            <span
-              className={
-                indicators.rsi.signal === 'oversold'
-                  ? 'text-green-400'
-                  : indicators.rsi.signal === 'overbought'
-                    ? 'text-red-400'
-                    : 'text-yellow-400'
-              }
-            >
-              {indicators.rsi.signal.charAt(0).toUpperCase() +
-                indicators.rsi.signal.slice(1)}
-            </span>
-            <span>Overbought (&gt;70)</span>
-          </div>
-        </div>
-
-        {/* MACD */}
-        <div className="card p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold flex items-center">MACD<InfoTooltip text={EXPLANATIONS.macd} /></h3>
-            <span
-              className={`font-bold ${
-                indicators.macd.trend === 'bullish'
-                  ? 'text-green-400'
-                  : indicators.macd.trend === 'bearish'
-                    ? 'text-red-400'
-                    : 'text-yellow-400'
-              }`}
-            >
-              {indicators.macd.trend.charAt(0).toUpperCase() +
-                indicators.macd.trend.slice(1)}
-            </span>
-          </div>
-          <MACDChart data={indicators.macd.history} />
-          <div className="flex gap-4 text-sm mt-2">
-            <span className="text-white/60">
-              MACD: <span className="text-white">{indicators.macd.macd.toFixed(2)}</span>
-            </span>
-            <span className="text-white/60">
-              Signal: <span className="text-white">{indicators.macd.signal.toFixed(2)}</span>
-            </span>
-            <span className="text-white/60">
-              Histogram:{' '}
-              <span
-                className={
-                  indicators.macd.histogram > 0 ? 'text-green-400' : 'text-red-400'
-                }
-              >
-                {indicators.macd.histogram.toFixed(2)}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        {/* Moving Averages */}
-        <div className="card p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold flex items-center">Moving Averages<InfoTooltip text={EXPLANATIONS.movingAverages} /></h3>
-            <span
-              className={`font-bold ${
-                indicators.movingAverages.signal === 'bullish'
-                  ? 'text-green-400'
-                  : indicators.movingAverages.signal === 'bearish'
-                    ? 'text-red-400'
-                    : 'text-yellow-400'
-              }`}
-            >
-              {indicators.movingAverages.signal.charAt(0).toUpperCase() +
-                indicators.movingAverages.signal.slice(1)}
-            </span>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-              <span className="text-white/60">SMA 20</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">
-                  ${indicators.movingAverages.sma20.toFixed(2)}
-                </span>
-                <span
-                  className={`text-sm ${
-                    indicators.movingAverages.priceVsSMA20 === 'above'
-                      ? 'text-green-400'
-                      : 'text-red-400'
-                  }`}
-                >
-                  Price {indicators.movingAverages.priceVsSMA20}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-              <span className="text-white/60">SMA 50</span>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">
-                  ${indicators.movingAverages.sma50.toFixed(2)}
-                </span>
-                <span
-                  className={`text-sm ${
-                    indicators.movingAverages.priceVsSMA50 === 'above'
-                      ? 'text-green-400'
-                      : 'text-red-400'
-                  }`}
-                >
-                  Price {indicators.movingAverages.priceVsSMA50}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-              <span className="text-white/60">EMA 20</span>
-              <span className="font-medium">
-                ${indicators.movingAverages.ema20.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bollinger Bands */}
-        <div className="card p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold flex items-center">Bollinger Bands<InfoTooltip text={EXPLANATIONS.bollinger} /></h3>
-            <span
-              className={`font-bold ${
-                indicators.bollingerBands.signal === 'oversold'
-                  ? 'text-green-400'
-                  : indicators.bollingerBands.signal === 'overbought'
-                    ? 'text-red-400'
-                    : 'text-yellow-400'
-              }`}
-            >
-              {indicators.bollingerBands.signal.charAt(0).toUpperCase() +
-                indicators.bollingerBands.signal.slice(1)}
-            </span>
-          </div>
-          <BollingerChart
-            data={indicators.bollingerBands.history}
-            historicalData={historicalData}
-          />
-          <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
-            <div className="text-center">
-              <p className="text-white/40">Upper</p>
-              <p className="font-medium">${indicators.bollingerBands.upper.toFixed(2)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white/40">Middle</p>
-              <p className="font-medium">${indicators.bollingerBands.middle.toFixed(2)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white/40">Lower</p>
-              <p className="font-medium">${indicators.bollingerBands.lower.toFixed(2)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Volume */}
-      <div className="card p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold flex items-center">Volume Analysis<InfoTooltip text={EXPLANATIONS.volume} /></h3>
-          <span
-            className={`font-bold ${
-              indicators.volume.trend === 'above_average'
-                ? 'text-green-400'
-                : indicators.volume.trend === 'below_average'
-                  ? 'text-red-400'
-                  : 'text-yellow-400'
-            }`}
+      {showTechnicals && (
+        <>
+          {/* Prediction Card */}
+          <div
+            className={`card p-6 mb-6 ${getSignalBgColor(prediction.signal)}`}
           >
-            {indicators.volume.trend === 'above_average'
-              ? 'Above Average'
-              : indicators.volume.trend === 'below_average'
-                ? 'Below Average'
-                : 'Average'}
-          </span>
-        </div>
-        <VolumeChart historicalData={historicalData} />
-        <div className="flex gap-6 mt-2 text-sm">
-          <span className="text-white/60">
-            Current:{' '}
-            <span className="text-white font-medium">
-              {(indicators.volume.current / 1000000).toFixed(1)}M
-            </span>
-          </span>
-          <span className="text-white/60">
-            20-Day Avg:{' '}
-            <span className="text-white font-medium">
-              {(indicators.volume.average20 / 1000000).toFixed(1)}M
-            </span>
-          </span>
-          <span className="text-white/60">
-            vs Avg:{' '}
-            <span
-              className={
-                indicators.volume.percentVsAverage > 0
-                  ? 'text-green-400'
-                  : 'text-red-400'
-              }
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-white/60" />
+                <span
+                  className={`text-xl font-bold ${getSignalTextColor(prediction.signal)}`}
+                >
+                  {getSignalLabel(prediction.signal)} Signal
+                </span>
+                <InfoTooltip text={EXPLANATIONS.prediction} />
+              </div>
+              <span className="text-white/40 text-sm">
+                Confidence: {prediction.confidence}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-start gap-3">
+                <ShoppingCart className="w-5 h-5 text-green-400 mt-1" />
+                <div>
+                  <p className="text-white/60 text-sm">Best Buy Zone</p>
+                  <p className="text-lg font-bold">
+                    ${prediction.buyZone.low.toFixed(2)} - $
+                    {prediction.buyZone.high.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Target className="w-5 h-5 text-blue-400 mt-1" />
+                <div>
+                  <p className="text-white/60 text-sm">5-Month Target</p>
+                  <p className="text-lg font-bold text-green-400">
+                    ${prediction.targetPrice.low.toFixed(2)} - $
+                    {prediction.targetPrice.high.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Wallet className="w-5 h-5 text-yellow-400 mt-1" />
+                <div>
+                  <p className="text-white/60 text-sm">Consider Selling</p>
+                  <p className="text-lg font-bold text-yellow-400">
+                    Above ${prediction.sellZone.low.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* RSI */}
+            <div className="card p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold flex items-center">RSI (14)<InfoTooltip text={EXPLANATIONS.rsi} /></h3>
+                <span
+                  className={`font-bold ${
+                    indicators.rsi.signal === 'oversold'
+                      ? 'text-green-400'
+                      : indicators.rsi.signal === 'overbought'
+                        ? 'text-red-400'
+                        : 'text-yellow-400'
+                  }`}
+                >
+                  {indicators.rsi.value.toFixed(1)}
+                </span>
+              </div>
+              <RSIChart data={indicators.rsi.history} />
+              <div className="flex justify-between text-xs text-white/40 mt-2">
+                <span>Oversold (&lt;30)</span>
+                <span
+                  className={
+                    indicators.rsi.signal === 'oversold'
+                      ? 'text-green-400'
+                      : indicators.rsi.signal === 'overbought'
+                        ? 'text-red-400'
+                        : 'text-yellow-400'
+                  }
+                >
+                  {indicators.rsi.signal.charAt(0).toUpperCase() +
+                    indicators.rsi.signal.slice(1)}
+                </span>
+                <span>Overbought (&gt;70)</span>
+              </div>
+            </div>
+
+            {/* MACD */}
+            <div className="card p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold flex items-center">MACD<InfoTooltip text={EXPLANATIONS.macd} /></h3>
+                <span
+                  className={`font-bold ${
+                    indicators.macd.trend === 'bullish'
+                      ? 'text-green-400'
+                      : indicators.macd.trend === 'bearish'
+                        ? 'text-red-400'
+                        : 'text-yellow-400'
+                  }`}
+                >
+                  {indicators.macd.trend.charAt(0).toUpperCase() +
+                    indicators.macd.trend.slice(1)}
+                </span>
+              </div>
+              <MACDChart data={indicators.macd.history} />
+              <div className="flex gap-4 text-sm mt-2">
+                <span className="text-white/60">
+                  MACD: <span className="text-white">{indicators.macd.macd.toFixed(2)}</span>
+                </span>
+                <span className="text-white/60">
+                  Signal: <span className="text-white">{indicators.macd.signal.toFixed(2)}</span>
+                </span>
+                <span className="text-white/60">
+                  Histogram:{' '}
+                  <span
+                    className={
+                      indicators.macd.histogram > 0 ? 'text-green-400' : 'text-red-400'
+                    }
+                  >
+                    {indicators.macd.histogram.toFixed(2)}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            {/* Moving Averages */}
+            <div className="card p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold flex items-center">Moving Averages<InfoTooltip text={EXPLANATIONS.movingAverages} /></h3>
+                <span
+                  className={`font-bold ${
+                    indicators.movingAverages.signal === 'bullish'
+                      ? 'text-green-400'
+                      : indicators.movingAverages.signal === 'bearish'
+                        ? 'text-red-400'
+                        : 'text-yellow-400'
+                  }`}
+                >
+                  {indicators.movingAverages.signal.charAt(0).toUpperCase() +
+                    indicators.movingAverages.signal.slice(1)}
+                </span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                  <span className="text-white/60">SMA 20</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      ${indicators.movingAverages.sma20.toFixed(2)}
+                    </span>
+                    <span
+                      className={`text-sm ${
+                        indicators.movingAverages.priceVsSMA20 === 'above'
+                          ? 'text-green-400'
+                          : 'text-red-400'
+                      }`}
+                    >
+                      Price {indicators.movingAverages.priceVsSMA20}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                  <span className="text-white/60">SMA 50</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      ${indicators.movingAverages.sma50.toFixed(2)}
+                    </span>
+                    <span
+                      className={`text-sm ${
+                        indicators.movingAverages.priceVsSMA50 === 'above'
+                          ? 'text-green-400'
+                          : 'text-red-400'
+                      }`}
+                    >
+                      Price {indicators.movingAverages.priceVsSMA50}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                  <span className="text-white/60">EMA 20</span>
+                  <span className="font-medium">
+                    ${indicators.movingAverages.ema20.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bollinger Bands */}
+            <div className="card p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold flex items-center">Bollinger Bands<InfoTooltip text={EXPLANATIONS.bollinger} /></h3>
+                <span
+                  className={`font-bold ${
+                    indicators.bollingerBands.signal === 'oversold'
+                      ? 'text-green-400'
+                      : indicators.bollingerBands.signal === 'overbought'
+                        ? 'text-red-400'
+                        : 'text-yellow-400'
+                  }`}
+                >
+                  {indicators.bollingerBands.signal.charAt(0).toUpperCase() +
+                    indicators.bollingerBands.signal.slice(1)}
+                </span>
+              </div>
+              <BollingerChart
+                data={indicators.bollingerBands.history}
+                historicalData={historicalData}
+              />
+              <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
+                <div className="text-center">
+                  <p className="text-white/40">Upper</p>
+                  <p className="font-medium">${indicators.bollingerBands.upper.toFixed(2)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-white/40">Middle</p>
+                  <p className="font-medium">${indicators.bollingerBands.middle.toFixed(2)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-white/40">Lower</p>
+                  <p className="font-medium">${indicators.bollingerBands.lower.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Volume */}
+          <div className="card p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold flex items-center">Volume Analysis<InfoTooltip text={EXPLANATIONS.volume} /></h3>
+              <span
+                className={`font-bold ${
+                  indicators.volume.trend === 'above_average'
+                    ? 'text-green-400'
+                    : indicators.volume.trend === 'below_average'
+                      ? 'text-red-400'
+                      : 'text-yellow-400'
+                }`}
+              >
+                {indicators.volume.trend === 'above_average'
+                  ? 'Above Average'
+                  : indicators.volume.trend === 'below_average'
+                    ? 'Below Average'
+                    : 'Average'}
+              </span>
+            </div>
+            <VolumeChart historicalData={historicalData} />
+            <div className="flex gap-6 mt-2 text-sm">
+              <span className="text-white/60">
+                Current:{' '}
+                <span className="text-white font-medium">
+                  {(indicators.volume.current / 1000000).toFixed(1)}M
+                </span>
+              </span>
+              <span className="text-white/60">
+                20-Day Avg:{' '}
+                <span className="text-white font-medium">
+                  {(indicators.volume.average20 / 1000000).toFixed(1)}M
+                </span>
+              </span>
+              <span className="text-white/60">
+                vs Avg:{' '}
+                <span
+                  className={
+                    indicators.volume.percentVsAverage > 0
+                      ? 'text-green-400'
+                      : 'text-red-400'
+                  }
+                >
+                  {indicators.volume.percentVsAverage > 0 ? '+' : ''}
+                  {indicators.volume.percentVsAverage.toFixed(1)}%
+                </span>
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* === COLLAPSIBLE: Trading Panel === */}
+      <button
+        onClick={() => setShowTrading(!showTrading)}
+        className="w-full card p-4 mb-4 flex justify-between items-center hover:bg-white/5 transition-colors"
+      >
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-green-400" />
+          Trade {quote.symbol}
+        </h2>
+        {showTrading ? <ChevronUp className="w-5 h-5 text-white/40" /> : <ChevronDown className="w-5 h-5 text-white/40" />}
+      </button>
+
+      {showTrading && (
+        <div className="card p-6 mb-6">
+          {tradeMessage && (
+            <div
+              className={`mb-4 p-3 rounded-lg ${
+                tradeMessage.type === 'success'
+                  ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                  : 'bg-red-500/10 border border-red-500/20 text-red-400'
+              }`}
             >
-              {indicators.volume.percentVsAverage > 0 ? '+' : ''}
-              {indicators.volume.percentVsAverage.toFixed(1)}%
-            </span>
-          </span>
+              {tradeMessage.text}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span className="text-white/60">Available Cash</span>
+                <span className="font-bold text-green-400">
+                  ${(portfolio?.currentCash || 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span className="text-white/60">Your Shares</span>
+                <span className="font-bold">
+                  {holdingStock?.shares || 0} shares
+                </span>
+              </div>
+              {holdingStock && holdingStock.shares > 0 && (
+                <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                  <span className="text-white/60">Avg Cost Basis</span>
+                  <span className="font-medium">
+                    ${holdingStock.avgPrice.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center p-3 bg-blue-500/10 rounded-lg">
+                <span className="text-white/60">Current Price</span>
+                <span className="font-bold text-blue-400">
+                  ${quote.price.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/60 mb-2">
+                  Number of Shares
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShares(Math.max(1, shares - 1))}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    value={shares}
+                    onChange={(e) => setShares(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-center text-xl font-bold focus:outline-none focus:border-blue-500"
+                    min={1}
+                  />
+                  <button
+                    onClick={() => setShares(shares + 1)}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-white/5 rounded-lg">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-white/60">Estimated Total</span>
+                  <span className="font-bold">${estimatedCost.toLocaleString()}</span>
+                </div>
+                <div className="text-xs text-white/40">
+                  {shares} shares x ${quote.price.toFixed(2)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => executeTrade('buy')}
+                  disabled={trading || !canBuy}
+                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  {trading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <TrendingUp className="w-4 h-4" />
+                  )}
+                  Buy
+                </button>
+                <button
+                  onClick={() => executeTrade('sell')}
+                  disabled={trading || !canSell}
+                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  {trading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4" />
+                  )}
+                  Sell
+                </button>
+              </div>
+
+              {!canBuy && shares > 0 && estimatedCost > (portfolio?.currentCash || 0) && (
+                <p className="text-red-400 text-sm text-center">
+                  Insufficient funds for this purchase
+                </p>
+              )}
+              {!canSell && holdingStock && shares > holdingStock.shares && (
+                <p className="text-red-400 text-sm text-center">
+                  You only have {holdingStock.shares} shares to sell
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Disclaimer */}
       <div className="card p-4 bg-yellow-500/10 border-yellow-500/20">
@@ -862,14 +901,12 @@ export default function StockPage({
         </p>
         <p className="text-white/60 text-xs">
           This analysis is for educational purposes only and should not be
-          considered financial advice. Predictions are based on historical
-          technical indicators and fundamental data models. Valuation estimates
-          use simplified models (Graham Number, P/E comparison, simplified DCF)
-          that have significant limitations. Fair value calculations depend on
-          reported financial data which may be outdated or restated. Past
-          performance does not guarantee future results. Always do your own
-          research and consult a licensed financial advisor before making
-          investment decisions.
+          considered financial advice. Valuation estimates use simplified models
+          (Graham Number, P/E comparison, simplified DCF) that have significant
+          limitations. Fair value calculations depend on reported financial data
+          which may be outdated or restated. Past performance does not guarantee
+          future results. Always do your own research and consult a licensed
+          financial advisor before making investment decisions.
         </p>
       </div>
     </div>
