@@ -49,6 +49,7 @@ export function MACDChart({ data }: MACDChartProps) {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+          itemStyle={{ color: '#ffffff' }}
           formatter={(value) => [Number(value).toFixed(2), '']}
         />
         <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />

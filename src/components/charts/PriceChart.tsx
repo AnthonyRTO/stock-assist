@@ -104,6 +104,7 @@ export function PriceChart({
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+          itemStyle={{ color: '#ffffff' }}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           formatter={((value: number, name: string) => {
             const label =

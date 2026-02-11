@@ -57,6 +57,7 @@ export function VolumeChart({ historicalData }: VolumeChartProps) {
             borderRadius: '8px',
           }}
           labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+          itemStyle={{ color: '#ffffff' }}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           formatter={((value: number) => [
             `${(value / 1000000).toFixed(2)}M`,
