@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useRef, useEffect } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import Link from 'next/link'
 import {
@@ -17,6 +17,8 @@ import {
   Plus,
   Scale,
   BarChart3,
+  HelpCircle,
+  X,
 } from 'lucide-react'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { RSIChart } from '@/components/charts/RSIChart'
@@ -141,6 +143,73 @@ function getBetaInterpretation(beta: number): string {
   if (beta < 1.2) return 'Market-like volatility — moves with the overall market'
   if (beta < 1.5) return 'Moderate volatility — amplifies market movements'
   return 'High volatility — significantly amplifies market swings'
+}
+
+// --- Info Tooltip Component ---
+function InfoTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }
+  }, [open])
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-white/30 hover:text-white/60 transition-colors ml-1.5"
+        aria-label="More info"
+      >
+        <HelpCircle className="w-4 h-4" />
+      </button>
+      {open && (
+        <div className="absolute z-50 left-0 top-full mt-2 w-72 p-3 rounded-lg bg-[#1e1e3a] border border-white/10 shadow-xl text-sm text-white/80 leading-relaxed">
+          <button
+            onClick={() => setOpen(false)}
+            className="absolute top-2 right-2 text-white/30 hover:text-white/60"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Indicator Explanations ---
+const EXPLANATIONS = {
+  prediction:
+    'The composite signal combines RSI, MACD, Moving Averages, Bollinger Bands, and Volume into a single buy/sell recommendation. Confidence reflects how many indicators agree. Buy Zone is where technical support suggests a good entry; Sell Zone is where resistance suggests taking profits.',
+  valuation:
+    'Compares the current stock price against estimated fair values from multiple financial models. "Undervalued" means the stock trades below its calculated worth; "Overvalued" means it trades above. The percentage shows how far the price is from the composite fair value midpoint.',
+  beta:
+    'Beta measures how much a stock moves relative to the overall market (S&P 500). Beta = 1 means it moves with the market. Beta > 1 means more volatile (amplifies market swings). Beta < 1 means less volatile (more stable). Used in the CAPM formula to estimate expected returns.',
+  capm:
+    'CAPM (Capital Asset Pricing Model) estimates the return an investor should expect for the risk taken. Formula: Risk-Free Rate + Beta x Market Premium. A higher expected return means more risk is priced in. If actual returns exceed CAPM, the stock outperformed expectations.',
+  valuationModels:
+    'Five different models estimate fair value from different angles. Graham Number uses earnings and book value (classic value investing). P/E Fair Value compares to sector averages. DCF projects future earnings and discounts them. Analyst Target is Wall Street consensus. ROE-Based values the company\'s return on equity. The composite averages all available models weighted by confidence.',
+  rsi:
+    'RSI (Relative Strength Index) measures momentum on a 0-100 scale over the last 14 trading days. Below 30 = "oversold" (the stock may have dropped too far and could bounce back). Above 70 = "overbought" (the stock may have risen too far and could pull back). Between 30-70 = neutral. It helps identify potential reversal points.',
+  macd:
+    'MACD (Moving Average Convergence Divergence) tracks the relationship between two moving averages of price. When the MACD line crosses above the Signal line, it\'s a bullish sign (upward momentum). When it crosses below, it\'s bearish. The Histogram shows the gap between them — growing bars mean strengthening momentum.',
+  movingAverages:
+    'Moving Averages smooth out price data to show the trend direction. SMA 20 (20-day) reacts quickly to recent changes; SMA 50 (50-day) shows the broader trend. When price is above these averages, the trend is bullish. When the short-term average crosses above the long-term ("golden cross"), it\'s a strong buy signal. EMA 20 gives more weight to recent prices.',
+  bollinger:
+    'Bollinger Bands create an envelope around price using a moving average and standard deviations. The Upper Band = overbought zone, Lower Band = oversold zone. When price touches the lower band, it may be a buying opportunity. When it touches the upper band, the stock may be stretched. Narrow bands ("squeeze") often precede big moves.',
+  volume:
+    'Volume shows how many shares were traded. High volume confirms price moves — a price increase on high volume is more reliable than one on low volume. Above-average volume suggests strong interest from buyers or sellers. Below-average volume may indicate indecision. Volume spikes often occur at major turning points.',
+  fundamentals:
+    'Key financial metrics from the company\'s latest reports. P/E Ratio = price relative to earnings (lower may mean cheaper). Forward P/E uses projected earnings. PEG factors in growth (PEG < 1 is attractive). EPS = earnings per share. Book Value = net assets per share. Dividend Yield = annual dividend as % of price. Profit Margin = how much revenue becomes profit. ROE = return generated on shareholder equity.',
 }
 
 export default function StockPage({
@@ -271,6 +340,7 @@ export default function StockPage({
             >
               {getSignalLabel(prediction.signal)} Signal
             </span>
+            <InfoTooltip text={EXPLANATIONS.prediction} />
           </div>
           <span className="text-white/40 text-sm">
             Confidence: {prediction.confidence}%
@@ -320,6 +390,7 @@ export default function StockPage({
                 <span className={`text-xl font-bold ${getVerdictColor(data.valuation.verdict)}`}>
                   {getVerdictLabel(data.valuation.verdict)}
                 </span>
+                <InfoTooltip text={EXPLANATIONS.valuation} />
               </div>
               <span className="text-white/40 text-sm">
                 {data.valuation.percentOverUndervalued > 0 ? '+' : ''}
@@ -339,14 +410,14 @@ export default function StockPage({
                 </p>
               </div>
               <div>
-                <p className="text-white/60 text-sm">Beta</p>
+                <p className="text-white/60 text-sm flex items-center">Beta<InfoTooltip text={EXPLANATIONS.beta} /></p>
                 <p className="text-lg font-bold">{data.valuation.beta.toFixed(2)}</p>
                 <p className="text-white/40 text-xs">
                   {getBetaInterpretation(data.valuation.beta)}
                 </p>
               </div>
               <div>
-                <p className="text-white/60 text-sm">CAPM Expected Return</p>
+                <p className="text-white/60 text-sm flex items-center">CAPM Expected Return<InfoTooltip text={EXPLANATIONS.capm} /></p>
                 <p className="text-lg font-bold text-blue-400">
                   {data.valuation.capmExpectedReturn.toFixed(1)}% / year
                 </p>
@@ -363,6 +434,7 @@ export default function StockPage({
               <h3 className="font-semibold flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
                 Valuation Models
+                <InfoTooltip text={EXPLANATIONS.valuationModels} />
               </h3>
             </div>
             <ValuationChart
@@ -393,7 +465,7 @@ export default function StockPage({
 
           {/* Key Fundamentals */}
           <div className="card p-6 mb-6">
-            <h3 className="font-semibold mb-4">Key Fundamentals</h3>
+            <h3 className="font-semibold mb-4 flex items-center">Key Fundamentals<InfoTooltip text={EXPLANATIONS.fundamentals} /></h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: 'P/E Ratio', value: data.valuation.overview.peRatio > 0 ? data.valuation.overview.peRatio.toFixed(1) : 'N/A' },
@@ -564,7 +636,7 @@ export default function StockPage({
         {/* RSI */}
         <div className="card p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold">RSI (14)</h3>
+            <h3 className="font-semibold flex items-center">RSI (14)<InfoTooltip text={EXPLANATIONS.rsi} /></h3>
             <span
               className={`font-bold ${
                 indicators.rsi.signal === 'oversold'
@@ -599,7 +671,7 @@ export default function StockPage({
         {/* MACD */}
         <div className="card p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold">MACD</h3>
+            <h3 className="font-semibold flex items-center">MACD<InfoTooltip text={EXPLANATIONS.macd} /></h3>
             <span
               className={`font-bold ${
                 indicators.macd.trend === 'bullish'
@@ -637,7 +709,7 @@ export default function StockPage({
         {/* Moving Averages */}
         <div className="card p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold">Moving Averages</h3>
+            <h3 className="font-semibold flex items-center">Moving Averages<InfoTooltip text={EXPLANATIONS.movingAverages} /></h3>
             <span
               className={`font-bold ${
                 indicators.movingAverages.signal === 'bullish'
@@ -698,7 +770,7 @@ export default function StockPage({
         {/* Bollinger Bands */}
         <div className="card p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold">Bollinger Bands</h3>
+            <h3 className="font-semibold flex items-center">Bollinger Bands<InfoTooltip text={EXPLANATIONS.bollinger} /></h3>
             <span
               className={`font-bold ${
                 indicators.bollingerBands.signal === 'oversold'
@@ -736,7 +808,7 @@ export default function StockPage({
       {/* Volume */}
       <div className="card p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold">Volume Analysis</h3>
+          <h3 className="font-semibold flex items-center">Volume Analysis<InfoTooltip text={EXPLANATIONS.volume} /></h3>
           <span
             className={`font-bold ${
               indicators.volume.trend === 'above_average'
