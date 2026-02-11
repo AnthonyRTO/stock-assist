@@ -41,7 +41,7 @@ export default async function DashboardLayout({
                 Portfolio
               </Link>
               <Link
-                href="#"
+                href="/learn"
                 className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
               >
                 <GraduationCap className="w-4 h-4" />

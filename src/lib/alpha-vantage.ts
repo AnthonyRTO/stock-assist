@@ -1,4 +1,5 @@
 import { CompanyOverview, HistoricalData, StockQuote } from '@/types'
+import { getYahooQuote, getYahooHistoricalData, getYahooCompanyOverview } from './yahoo-finance'
 
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'demo'
 const BASE_URL = 'https://www.alphavantage.co/query'
@@ -48,9 +49,25 @@ export async function getStockQuote(symbol: string): Promise<StockQuote | null> 
       setCache(cacheKey, result)
       return result
     }
+
+    // Fallback to Yahoo Finance
+    const yahooResult = await getYahooQuote(symbol)
+    if (yahooResult) {
+      setCache(cacheKey, yahooResult)
+      return yahooResult
+    }
+
     return null
   } catch (error) {
     console.error('Error fetching stock quote:', error)
+    // Try Yahoo Finance on error
+    try {
+      const yahooResult = await getYahooQuote(symbol)
+      if (yahooResult) {
+        setCache(cacheKey, yahooResult)
+        return yahooResult
+      }
+    } catch { /* ignore */ }
     return null
   }
 }
@@ -92,9 +109,25 @@ export async function getHistoricalData(
       setCache(cacheKey, result)
       return result
     }
+
+    // Fallback to Yahoo Finance
+    const yahooResult = await getYahooHistoricalData(symbol, months)
+    if (yahooResult.length > 0) {
+      setCache(cacheKey, yahooResult)
+      return yahooResult
+    }
+
     return []
   } catch (error) {
     console.error('Error fetching historical data:', error)
+    // Try Yahoo Finance on error
+    try {
+      const yahooResult = await getYahooHistoricalData(symbol, months)
+      if (yahooResult.length > 0) {
+        setCache(cacheKey, yahooResult)
+        return yahooResult
+      }
+    } catch { /* ignore */ }
     return []
   }
 }
@@ -156,6 +189,12 @@ export async function getCompanyOverview(symbol: string): Promise<CompanyOvervie
     const data = await response.json()
 
     if (!data.Symbol || Object.keys(data).length < 5) {
+      // Fallback to Yahoo Finance
+      const yahooResult = await getYahooCompanyOverview(symbol)
+      if (yahooResult) {
+        setCache(cacheKey, yahooResult)
+        return yahooResult
+      }
       return null
     }
 
@@ -186,6 +225,14 @@ export async function getCompanyOverview(symbol: string): Promise<CompanyOvervie
     return result
   } catch (error) {
     console.error('Error fetching company overview:', error)
+    // Try Yahoo Finance on error
+    try {
+      const yahooResult = await getYahooCompanyOverview(symbol)
+      if (yahooResult) {
+        setCache(cacheKey, yahooResult)
+        return yahooResult
+      }
+    } catch { /* ignore */ }
     return null
   }
 }
