@@ -19,7 +19,8 @@ export function toYahooSymbol(symbol: string): string {
 
 export async function getYahooQuote(symbol: string): Promise<StockQuote | null> {
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default
+    const YahooFinance = (await import('yahoo-finance2')).default
+    const yahooFinance = new YahooFinance()
     const yahooSymbol = toYahooSymbol(symbol)
     const raw: Record<string, unknown> = await yahooFinance.quote(yahooSymbol) as Record<string, unknown>
 
@@ -49,7 +50,8 @@ export async function getYahooHistoricalData(
   months: number = 3
 ): Promise<HistoricalData[]> {
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default
+    const YahooFinance = (await import('yahoo-finance2')).default
+    const yahooFinance = new YahooFinance()
     const yahooSymbol = toYahooSymbol(symbol)
 
     const endDate = new Date()
@@ -85,7 +87,8 @@ export async function getYahooHistoricalData(
 
 export async function getYahooCompanyOverview(symbol: string): Promise<CompanyOverview | null> {
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default
+    const YahooFinance = (await import('yahoo-finance2')).default
+    const yahooFinance = new YahooFinance()
     const yahooSymbol = toYahooSymbol(symbol)
 
     const summary = await yahooFinance.quoteSummary(yahooSymbol, {
