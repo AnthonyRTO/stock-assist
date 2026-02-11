@@ -221,7 +221,25 @@ const EXPLANATIONS = {
   volume:
     'Volume shows how many shares were traded. High volume confirms price moves — a price increase on high volume is more reliable than one on low volume. Above-average volume suggests strong interest from buyers or sellers. Below-average volume may indicate indecision. Volume spikes often occur at major turning points.',
   fundamentals:
-    'Key financial metrics from the company\'s latest reports. P/E Ratio = price relative to earnings (lower may mean cheaper). Forward P/E uses projected earnings. PEG factors in growth (PEG < 1 is attractive). EPS = earnings per share. Book Value = net assets per share. Dividend Yield = annual dividend as % of price. Profit Margin = how much revenue becomes profit. ROE = return generated on shareholder equity.',
+    'Key financial metrics from the company\'s latest reports. These numbers come from the company\'s earnings, balance sheet, and analyst estimates. Together they paint a picture of how profitable, efficient, and expensive the stock is.',
+  fairValueRange:
+    'The low-to-high range across all valuation models. The midpoint is a weighted average giving more weight to higher-confidence models (like Analyst Target). If the current price is below this range, the stock may be undervalued. If above, it may be overvalued.',
+  peRatio:
+    'Price-to-Earnings Ratio. The stock price divided by earnings per share. A P/E of 20 means you pay $20 for every $1 of annual earnings. Lower P/E can mean the stock is cheaper relative to its earnings, but very low P/E may signal problems. Compare to sector peers for context.',
+  forwardPE:
+    'Forward P/E uses analysts\' projected earnings for the next 12 months instead of past earnings. If Forward P/E is lower than the trailing P/E, analysts expect earnings to grow. A much higher Forward P/E means analysts expect earnings to shrink.',
+  pegRatio:
+    'Price/Earnings to Growth ratio. P/E Ratio divided by the earnings growth rate. PEG = 1 means fair value relative to growth. PEG < 1 suggests the stock is cheap for its growth rate (attractive). PEG > 2 means you\'re paying a premium for growth. One of the best quick-check metrics.',
+  eps:
+    'Earnings Per Share. The company\'s total profit divided by the number of outstanding shares. Tells you how much profit the company generates per share you own. Higher EPS = more profitable. Negative EPS means the company is losing money.',
+  bookValue:
+    'Book Value Per Share. The company\'s net assets (total assets minus total liabilities) divided by shares outstanding. Represents what each share would theoretically be worth if the company liquidated everything. Stocks trading below book value may be bargains — or troubled.',
+  dividendYield:
+    'The annual dividend payment as a percentage of the stock price. A 3% yield means you receive $3/year for every $100 invested. "None" means the company doesn\'t pay dividends (common for growth stocks). High yields (>5%) can signal risk if the dividend may be cut.',
+  profitMargin:
+    'Net Profit Margin. The percentage of revenue that becomes actual profit after all expenses. A 20% margin means the company keeps $0.20 of every $1 in revenue. Higher margins = more efficient. Tech companies often have high margins (30%+); retailers tend to have low margins (2-5%).',
+  roe:
+    'Return on Equity. How much profit the company generates with shareholders\' money. ROE of 20% means $1 of equity produces $0.20 of profit. Higher ROE = more efficient use of capital. Top companies sustain 15-25%+. Very high ROE (>40%) may indicate heavy debt rather than true efficiency.',
 }
 
 export default function StockPage({
@@ -363,7 +381,7 @@ export default function StockPage({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-white/60 text-sm">Fair Value Range</p>
+                <p className="text-white/60 text-sm flex items-center">Fair Value Range<InfoTooltip text={EXPLANATIONS.fairValueRange} /></p>
                 <p className="text-lg font-bold">
                   ${data.valuation.compositeFairValue.low.toFixed(2)} - $
                   {data.valuation.compositeFairValue.high.toFixed(2)}
@@ -445,17 +463,17 @@ export default function StockPage({
             <h3 className="font-semibold mb-4 flex items-center">Key Fundamentals<InfoTooltip text={EXPLANATIONS.fundamentals} /></h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'P/E Ratio', value: data.valuation.overview.peRatio > 0 ? data.valuation.overview.peRatio.toFixed(1) : 'N/A' },
-                { label: 'Forward P/E', value: data.valuation.overview.forwardPE > 0 ? data.valuation.overview.forwardPE.toFixed(1) : 'N/A' },
-                { label: 'PEG Ratio', value: data.valuation.overview.pegRatio > 0 ? data.valuation.overview.pegRatio.toFixed(2) : 'N/A' },
-                { label: 'EPS', value: `$${data.valuation.overview.eps.toFixed(2)}` },
-                { label: 'Book Value', value: `$${data.valuation.overview.bookValue.toFixed(2)}` },
-                { label: 'Dividend Yield', value: data.valuation.overview.dividendYield > 0 ? `${(data.valuation.overview.dividendYield * 100).toFixed(2)}%` : 'None' },
-                { label: 'Profit Margin', value: `${(data.valuation.overview.profitMargin * 100).toFixed(1)}%` },
-                { label: 'ROE', value: `${(data.valuation.overview.returnOnEquity * 100).toFixed(1)}%` },
-              ].map(({ label, value }) => (
+                { label: 'P/E Ratio', value: data.valuation.overview.peRatio > 0 ? data.valuation.overview.peRatio.toFixed(1) : 'N/A', tip: EXPLANATIONS.peRatio },
+                { label: 'Forward P/E', value: data.valuation.overview.forwardPE > 0 ? data.valuation.overview.forwardPE.toFixed(1) : 'N/A', tip: EXPLANATIONS.forwardPE },
+                { label: 'PEG Ratio', value: data.valuation.overview.pegRatio > 0 ? data.valuation.overview.pegRatio.toFixed(2) : 'N/A', tip: EXPLANATIONS.pegRatio },
+                { label: 'EPS', value: `$${data.valuation.overview.eps.toFixed(2)}`, tip: EXPLANATIONS.eps },
+                { label: 'Book Value', value: `$${data.valuation.overview.bookValue.toFixed(2)}`, tip: EXPLANATIONS.bookValue },
+                { label: 'Dividend Yield', value: data.valuation.overview.dividendYield > 0 ? `${(data.valuation.overview.dividendYield * 100).toFixed(2)}%` : 'None', tip: EXPLANATIONS.dividendYield },
+                { label: 'Profit Margin', value: `${(data.valuation.overview.profitMargin * 100).toFixed(1)}%`, tip: EXPLANATIONS.profitMargin },
+                { label: 'ROE', value: `${(data.valuation.overview.returnOnEquity * 100).toFixed(1)}%`, tip: EXPLANATIONS.roe },
+              ].map(({ label, value, tip }) => (
                 <div key={label} className="p-3 bg-white/5 rounded-lg">
-                  <p className="text-white/40 text-xs">{label}</p>
+                  <p className="text-white/40 text-xs flex items-center">{label}<InfoTooltip text={tip} /></p>
                   <p className="font-medium">{value}</p>
                 </div>
               ))}
