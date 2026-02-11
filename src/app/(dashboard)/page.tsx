@@ -188,10 +188,16 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stock Search Bar */}
+      {/* Stock Search Bar - Primary Action */}
       <div className="mb-8" ref={mainSearchRef}>
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold mb-3">Analyze a Stock</h2>
+        <div className="card p-6 border border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+          <div className="flex items-center gap-3 mb-3">
+            <Search className="w-6 h-6 text-blue-400" />
+            <h2 className="text-xl font-bold">Search Any Stock</h2>
+          </div>
+          <p className="text-white/50 text-sm mb-4">
+            Look up any ticker to see valuation, fair value estimates, and whether it&apos;s overvalued or undervalued.
+          </p>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
             <input
@@ -200,8 +206,9 @@ export default function DashboardPage() {
               onChange={(e) => setMainSearch(e.target.value)}
               onFocus={() => mainSearchResults.length > 0 && setShowMainResults(true)}
               onKeyDown={handleMainSearchKeyDown}
-              placeholder="Enter a stock ticker (e.g., AAPL, TSLA, MSFT) and press Enter"
-              className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-lg focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder="Enter a ticker symbol (e.g., AAPL, TSLA, MSFT) and press Enter"
+              className="w-full bg-white/10 border border-white/20 rounded-xl pl-12 pr-4 py-4 text-lg focus:outline-none focus:border-blue-500 placeholder:text-white/30 transition-colors"
+              autoFocus
             />
             {mainSearching && (
               <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-400" />
