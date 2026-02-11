@@ -21,13 +21,13 @@ export default async function DashboardLayout({
       <nav className="border-b border-white/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/dashboard" className="flex items-center gap-2">
               <TrendingUp className="w-8 h-8 text-blue-400" />
               <span className="text-xl font-bold">Stock-Assist</span>
             </Link>
             <div className="hidden md:flex items-center gap-6">
               <Link
-                href="/"
+                href="/dashboard"
                 className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />

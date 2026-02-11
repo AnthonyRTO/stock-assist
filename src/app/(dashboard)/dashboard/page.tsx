@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import {
   TrendingUp,
@@ -12,6 +13,7 @@ import {
   X,
   Search,
   Loader2,
+  ArrowRight,
 } from 'lucide-react'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
@@ -34,6 +36,7 @@ interface Portfolio {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { data, mutate, isLoading } = useSWR('/api/portfolio', fetcher)
   const [showAddStock, setShowAddStock] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -43,9 +46,67 @@ export default function DashboardPage() {
   const [searching, setSearching] = useState(false)
   const [adding, setAdding] = useState(false)
 
+  // Main search bar state
+  const [mainSearch, setMainSearch] = useState('')
+  const [mainSearchResults, setMainSearchResults] = useState<
+    Array<{ symbol: string; name: string; region: string }>
+  >([])
+  const [mainSearching, setMainSearching] = useState(false)
+  const [showMainResults, setShowMainResults] = useState(false)
+  const mainSearchRef = useRef<HTMLDivElement>(null)
+
   const portfolio: Portfolio | null = data?.portfolios?.[0] || null
 
-  // Search for stocks
+  // Close main search dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (mainSearchRef.current && !mainSearchRef.current.contains(e.target as Node)) {
+        setShowMainResults(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Main search bar - search for stocks
+  useEffect(() => {
+    if (mainSearch.length < 1) {
+      setMainSearchResults([])
+      return
+    }
+
+    const timeout = setTimeout(async () => {
+      setMainSearching(true)
+      try {
+        const res = await fetch(`/api/stocks/search?q=${mainSearch}`)
+        const data = await res.json()
+        setMainSearchResults(data.results || [])
+        setShowMainResults(true)
+      } catch (error) {
+        console.error('Search error:', error)
+      } finally {
+        setMainSearching(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timeout)
+  }, [mainSearch])
+
+  // Navigate directly to stock page
+  const goToStock = (symbol: string) => {
+    setShowMainResults(false)
+    setMainSearch('')
+    router.push(`/stock/${symbol}`)
+  }
+
+  // Handle Enter key - go directly to typed symbol
+  const handleMainSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && mainSearch.trim()) {
+      goToStock(mainSearch.trim().toUpperCase())
+    }
+  }
+
+  // Search for stocks (Add Stock modal)
   useEffect(() => {
     if (searchQuery.length < 1) {
       setSearchResults([])
@@ -125,6 +186,63 @@ export default function DashboardPage() {
         <p className="text-white/60">
           Welcome back! Track your virtual portfolio and analyze stocks.
         </p>
+      </div>
+
+      {/* Stock Search Bar - Primary Action */}
+      <div className="mb-8" ref={mainSearchRef}>
+        <div className="card p-6 border border-blue-500/30 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+          <div className="flex items-center gap-3 mb-3">
+            <Search className="w-6 h-6 text-blue-400" />
+            <h2 className="text-xl font-bold">Search Any Stock</h2>
+          </div>
+          <p className="text-white/50 text-sm mb-4">
+            Look up any ticker to see valuation, fair value estimates, and whether it&apos;s overvalued or undervalued.
+          </p>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+            <input
+              type="text"
+              value={mainSearch}
+              onChange={(e) => setMainSearch(e.target.value)}
+              onFocus={() => mainSearchResults.length > 0 && setShowMainResults(true)}
+              onKeyDown={handleMainSearchKeyDown}
+              placeholder="Enter a ticker symbol (e.g., AAPL, TSLA, MSFT) and press Enter"
+              className="w-full bg-white/10 border border-white/20 rounded-xl pl-12 pr-4 py-4 text-lg focus:outline-none focus:border-blue-500 placeholder:text-white/30 transition-colors"
+              autoFocus
+            />
+            {mainSearching && (
+              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-400" />
+            )}
+          </div>
+
+          {/* Search Results Dropdown */}
+          {showMainResults && mainSearchResults.length > 0 && (
+            <div className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1a2e] divide-y divide-white/5">
+              {mainSearchResults.map((result) => (
+                <button
+                  key={result.symbol}
+                  onClick={() => goToStock(result.symbol)}
+                  className="w-full text-left px-4 py-3 hover:bg-white/10 transition-colors flex justify-between items-center"
+                >
+                  <div>
+                    <span className="font-semibold text-blue-400">{result.symbol}</span>
+                    <span className="text-white/60 text-sm ml-3">{result.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white/40">{result.region}</span>
+                    <ArrowRight className="w-4 h-4 text-white/30" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mainSearch && !mainSearching && mainSearchResults.length === 0 && showMainResults && (
+            <p className="mt-2 text-white/50 text-sm text-center py-2">
+              No results found. Press Enter to look up &quot;{mainSearch.toUpperCase()}&quot; directly.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
