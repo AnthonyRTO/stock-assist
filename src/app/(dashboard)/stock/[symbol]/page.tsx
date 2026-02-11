@@ -200,6 +200,16 @@ const EXPLANATIONS = {
     'CAPM (Capital Asset Pricing Model) estimates the return an investor should expect for the risk taken. Formula: Risk-Free Rate + Beta x Market Premium. A higher expected return means more risk is priced in. If actual returns exceed CAPM, the stock outperformed expectations.',
   valuationModels:
     'Five different models estimate fair value from different angles. Graham Number uses earnings and book value (classic value investing). P/E Fair Value compares to sector averages. DCF projects future earnings and discounts them. Analyst Target is Wall Street consensus. ROE-Based values the company\'s return on equity. The composite averages all available models weighted by confidence.',
+  grahamNumber:
+    'Developed by Benjamin Graham, the "father of value investing." Formula: √(22.5 × EPS × Book Value). It estimates a stock\'s intrinsic worth using only earnings and net assets — no growth assumptions. A stock trading below its Graham Number may be undervalued from a classic value perspective. Works best for stable, profitable companies; less reliable for high-growth or asset-light firms.',
+  peFairValue:
+    'Estimates fair value by multiplying the company\'s EPS by the average P/E ratio for its sector. For example, if the Technology sector trades at an average P/E of 28 and a company earns $5/share, fair value = $140. If the stock trades below that, it may be cheaper than its peers. Limitation: assumes the sector average is "correct" and ignores individual growth rates.',
+  simpleDCF:
+    'Discounted Cash Flow (DCF) projects the company\'s future earnings for 5 years, then calculates a terminal value, and discounts everything back to today\'s dollars using the CAPM rate. Growth rate is estimated from the PEG ratio. A stock trading below its DCF value suggests the market is underpricing future earnings. This is the most forward-looking model but depends heavily on growth assumptions.',
+  analystTarget:
+    'The average 12-month price target from Wall Street analysts who cover this stock. Analysts use detailed financial models, management guidance, and industry expertise. "High" confidence because it reflects professional research, but analysts can be wrong — they tend to be overly optimistic and often adjust targets after price moves rather than before.',
+  roeBasedValue:
+    'Values the company based on how efficiently it generates returns on shareholder equity. Formula: Book Value × (1 + ROE) / discount rate. A company with high ROE creates more value per dollar of equity, so it deserves a higher valuation. Useful for comparing companies in the same industry. Limited by the fact that ROE can be artificially inflated by high debt levels.',
   rsi:
     'RSI (Relative Strength Index) measures momentum on a 0-100 scale over the last 14 trading days. Below 30 = "oversold" (the stock may have dropped too far and could bounce back). Above 70 = "overbought" (the stock may have risen too far and could pull back). Between 30-70 = neutral. It helps identify potential reversal points.',
   macd:
@@ -396,10 +406,23 @@ export default function StockPage({
               compositeMid={data.valuation.compositeFairValue.mid}
             />
             <div className="mt-4 space-y-2">
-              {data.valuation.models.map((model) => (
+              {data.valuation.models.map((model) => {
+                const modelExplanations: Record<string, string> = {
+                  'Graham Number': EXPLANATIONS.grahamNumber,
+                  'P/E Fair Value': EXPLANATIONS.peFairValue,
+                  'Simple DCF': EXPLANATIONS.simpleDCF,
+                  'Analyst Target': EXPLANATIONS.analystTarget,
+                  'ROE-Based Value': EXPLANATIONS.roeBasedValue,
+                }
+                return (
                 <div key={model.name} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                   <div>
-                    <span className="text-white/80 text-sm">{model.name}</span>
+                    <span className="text-white/80 text-sm flex items-center">
+                      {model.name}
+                      {modelExplanations[model.name] && (
+                        <InfoTooltip text={modelExplanations[model.name]} />
+                      )}
+                    </span>
                     <p className="text-white/40 text-xs">{model.description}</p>
                   </div>
                   <span className={`font-medium ${
@@ -412,7 +435,8 @@ export default function StockPage({
                     {model.fairValue !== null ? `$${model.fairValue.toFixed(2)}` : 'N/A'}
                   </span>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
